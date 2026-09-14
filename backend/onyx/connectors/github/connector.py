@@ -1518,3 +1518,21 @@ if __name__ == "__main__":
                 print(f"Failure: {failure.failure_message}")
             if next_checkpoint:
                 checkpoint = next_checkpoint
+def _fetch_with_exponential_backoff(self, api_call, max_retries=3, initial_delay=2):
+        """
+        Custom retry wrapper to handle GitHub API rate limits gracefully.
+        """
+        delay = initial_delay
+        for attempt in range(max_retries):
+            try:
+                return api_call()
+            except Exception as e:
+                if "rate limit" in str(e).lower() or "429" in str(e):
+                    if attempt == max_retries - 1:
+                        logger.error(f"GitHub Connector API Rate limit exceeded after {max_retries} attempts.")
+                        raise e
+                    logger.warning(f"Rate limit hit. Retrying in {delay} seconds (Attempt {attempt + 1}/{max_retries})...")
+                    time.sleep(delay)
+                    delay *= 2
+                else:
+                    raise e
